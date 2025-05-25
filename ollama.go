@@ -9,10 +9,18 @@ import (
 )
 
 func replyToMessage(number string, message string) {
-	messages := []Message{
-		{Role: "system", Content: config.SystemPrompt},
-		{Role: "user", Content: message},
+	previousMessages, err := getConversationWithNumber(number)
+	if err != nil {
+		fmt.Printf("Error getting conversation history: %v\n", err)
+		return
 	}
+
+	messages := []Message{}
+	messages = append(messages, Message{Role: "system", Content: config.SystemPrompt})
+	messages = append(messages, previousMessages...)
+	messages = append(messages, Message{Role: "user", Content: message})
+
+	fmt.Println("🤖 Generating response")
 	response, err := callOllamaChatAPI(config.Model, messages)
 	if err != nil {
 		fmt.Printf("Error talking to Ollama: %v\n", err)
@@ -29,34 +37,29 @@ func callOllamaChatAPI(model string, messages []Message) (string, error) {
 		Messages: messages,
 	}
 
-	// Marshal request into JSON
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request JSON: %w", err)
 	}
 
-	// Create the HTTP POST request
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	// Send the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Read the streamed response line by line
 	scanner := bufio.NewScanner(resp.Body)
 	var fullResponse string
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Parse each line as a StreamChunk
 		var chunk StreamChunk
 		if err := json.Unmarshal([]byte(line), &chunk); err != nil {
 			return "", fmt.Errorf("failed to parse chunk: %w", err)

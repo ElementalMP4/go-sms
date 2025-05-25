@@ -68,16 +68,15 @@ func readUnreadMessages() {
 		return
 	}
 
-	fmt.Println("📩 Unread SMS Messages:")
+	fmt.Println("📩 Processing SMS Messages")
 	for _, msg := range smsResp.Messages {
-		if msg.Read == 1 {
+		if msg.Smstat == 1 {
 			continue
 		}
 		if contains(config.Ignored, msg.Phone) {
 			fmt.Printf("Ignoring message from %s\n", msg.Phone)
 			continue
 		}
-		fmt.Printf("Seen? %d From: %s\nDate: %s\nMessage: %s\n", msg.Read, msg.Phone, msg.Date, msg.Content)
 		markMessageRead(msg.Index)
 		go replyToMessage(msg.Phone, msg.Content)
 	}
@@ -226,4 +225,55 @@ func pollSMSCount(callback func()) {
 			time.Sleep(time.Second - elapsed)
 		}
 	}
+}
+
+func getConversationWithNumber(phoneNumber string) ([]Message, error) {
+	info, err := getSessionToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session token: %v", err)
+	}
+
+	client := &http.Client{}
+
+	reqData := SMSConversationListRequest{
+		PageIndex: 1,
+		ReadCount: 20,
+		Phone:     phoneNumber,
+	}
+
+	xmlPayload, _ := xml.Marshal(reqData)
+	xmlPayload = append([]byte(xml.Header), xmlPayload...)
+
+	req, err := http.NewRequest("POST", config.ApiBase+"/api/sms/sms-list-phone", bytes.NewReader(xmlPayload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/xml")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Cookie", fmt.Sprintf("SessionID=%s", info.SesInfo))
+	req.Header.Set("__RequestVerificationToken", info.TokInfo)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var listResp SMSConversationListResponse
+	if err := xml.Unmarshal(body, &listResp); err != nil {
+		return nil, fmt.Errorf("failed to parse message list: %v\nRaw: %s", err, string(body))
+	}
+
+	allMessages := []Message{}
+	for _, msg := range listResp.Messages {
+		role := "user"
+		if msg.Smstat == 3 {
+			role = "assistant"
+		}
+		allMessages = append(allMessages, Message{Role: role, Content: msg.Content})
+	}
+
+	return allMessages, nil
 }

@@ -69,17 +69,37 @@ type SMSListRequest struct {
 	UnreadPreferred int      `xml:"UnreadPreferred"`
 }
 
+type SMSConversationListRequest struct {
+	XMLName   xml.Name `xml:"request"`
+	Phone     string   `xml:"phone"`
+	PageIndex int      `xml:"pageindex"`
+	ReadCount int      `xml:"readcount"`
+}
+
 type SMSMessage struct {
 	Index   int    `xml:"Index"`
 	Phone   string `xml:"Phone"`
 	Content string `xml:"Content"`
 	Date    string `xml:"Date"`
-	Read    int    `xml:"Smstat"`
+	Smstat  int    `xml:"Smstat"`
+}
+
+type SMSConversationMessage struct {
+	Index   int    `xml:"index"`
+	Phone   string `xml:"phone"`
+	Content string `xml:"content"`
+	Date    string `xml:"date"`
+	Smstat  int    `xml:"smstat"`
 }
 
 type SMSListResponse struct {
 	XMLName  xml.Name     `xml:"response"`
 	Messages []SMSMessage `xml:"Messages>Message"`
+}
+
+type SMSConversationListResponse struct {
+	XMLName  xml.Name                 `xml:"response"`
+	Messages []SMSConversationMessage `xml:"messages>message"`
 }
 
 type StreamChunk struct {
