@@ -124,3 +124,8 @@ type ChatResponse struct {
 	Message Message `json:"message"`
 	Done    bool    `json:"done"`
 }
+
+type DeviceInfoResponse struct {
+	XMLName xml.Name `xml:"response"`
+	Number  string   `xml:"Msisdn"`
+}

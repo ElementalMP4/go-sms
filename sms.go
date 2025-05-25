@@ -9,6 +9,28 @@ import (
 	"time"
 )
 
+func getPhoneNumber() (string, error) {
+	req, err := http.NewRequest("GET", config.ApiBase+"/api/device/information", nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %v", err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error getting device information: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respData, _ := io.ReadAll(resp.Body)
+	var deviceInfo DeviceInfoResponse
+	if err := xml.Unmarshal(respData, &deviceInfo); err != nil {
+		return "", fmt.Errorf("error unmarshalling device info response: %v", err)
+	}
+
+	return deviceInfo.Number, nil
+}
+
 func readUnreadMessages() {
 	info, err := getSessionToken()
 	if err != nil {
